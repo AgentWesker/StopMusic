@@ -1,6 +1,3 @@
-#pragma semicolon 1
-
-#include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
 #include <dhooks>
@@ -8,10 +5,7 @@
 #include <regex>
 //#include <emitsoundany>
 
-#pragma newdecls required
-
-#define PLUGIN_NAME 	"Toggle Music"
-#define PLUGIN_VERSION 	"3.7.8"
+#define PLUGIN_VERSION "3.7.8-B"
 
 //Create ConVar handles
 Handle g_hClientVolCookie;
@@ -22,8 +16,8 @@ RegexError regError;
 ConVar g_ConVar_Debug;
 
 //Global Handles & Variables
-float g_fCmdTime[MAXPLAYERS+1];
-float g_fClientVol[MAXPLAYERS+1];
+float g_fCmdTime[MAXPLAYERS + 1];
+float g_fClientVol[MAXPLAYERS + 1];
 bool g_bDisabled[MAXPLAYERS + 1];
 int randomChannel;
 int g_iDebug;
@@ -33,81 +27,89 @@ StringMap g_smCommon;
 StringMap g_smRecent;
 StringMap g_smVolume;
 
-public Plugin myinfo =
+public Plugin myinfo = 
 {
-	name = PLUGIN_NAME,
-	author = "Mitch & Agent Wesker",
-	description = "Allows clients to toggle ambient sounds played by the map",
-	version = PLUGIN_VERSION,
+	name = "Toggle Music", 
+	author = "Mitch & Agent Wesker (Playa Edit)", 
+	description = "Allows clients to toggle ambient sounds played by the map", 
+	version = PLUGIN_VERSION, 
 	url = "https://www.steam-gamers.net/"
 };
 
 public void OnPluginStart()
 {
-	CreateConVar("sm_togglemusic_version", PLUGIN_VERSION, "Toggle Map Music", FCVAR_NOTIFY|FCVAR_DONTRECORD);
-
+	CreateConVar("sm_togglemusic_version", PLUGIN_VERSION, "Toggle Map Music Version", FCVAR_NOTIFY | FCVAR_DONTRECORD);
+	
 	RegConsoleCmd("sm_music", Command_Music, "Toggles map music");
 	RegConsoleCmd("sm_stopmusic", Command_StopMusic, "Toggles map music");
 	RegConsoleCmd("sm_volume", Command_Volume, "Brings volume menu");
-
+	
 	g_ConVar_Debug = CreateConVar("sm_togglemusic_debug", "0", "Debug mode (0 = off, 1 = on)", 0, true, 0.0, true, 1.0);
 	g_iDebug = GetConVarInt(g_ConVar_Debug);
 	HookConVarChange(g_ConVar_Debug, OnConVarChanged);
-
+	
 	if (g_smSourceEnts == null)
 		g_smSourceEnts = new StringMap();
-	
+		
 	if (g_smChannel == null)
 		g_smChannel = new StringMap();
-	
+		
 	if (g_smCommon == null)
 		g_smCommon = new StringMap();
-	
+		
 	if (g_smRecent == null)
 		g_smRecent = new StringMap();
 		
 	if (g_smVolume == null)
 		g_smVolume = new StringMap();
-	
+		
 	if (g_hClientVolCookie == null)
 		g_hClientVolCookie = RegClientCookie("togglemusic_volume", "ToggleMusic Volume Pref", CookieAccess_Protected);
 		
 	if (g_hClientMusicCookie == null)
 		g_hClientMusicCookie = RegClientCookie("togglemusic_music", "ToggleMusic Music Pref", CookieAccess_Protected);
-	
+		
 	char preError[256];
 	char prePattern[256] = "(([-_a-zA-Z0-9]+[/]?)+[.][a-zA-Z0-9]{3})";
 	regPattern = CompileRegex(prePattern, PCRE_CASELESS, preError, sizeof(preError), regError);
-	if (regError != REGEX_ERROR_NONE) { LogError(preError); }
-	
+	if (regError != REGEX_ERROR_NONE)
+		LogError(preError);
+		
 	if (hAcceptInput == null)
 	{
-	
+		
 		EngineVersion eVer = GetEngineVersion();
 		char tmpOffset[148];
 		
-		if (eVer == Engine_CSGO) {
+		if (eVer == Engine_CSGO)
 			tmpOffset = "sdktools.games\\engine.csgo";
-		} else if (eVer == Engine_CSS) {
-				tmpOffset = "sdktools.games\\engine.css";
-		} else if (eVer == Engine_TF2) {
-				tmpOffset = "sdktools.games\\engine.tf";
-		} else if (eVer == Engine_Contagion) {
-				tmpOffset = "sdktools.games\\engine.contagion";
-		} else if (eVer == Engine_Left4Dead2) {
-				tmpOffset = "sdktools.games\\engine.Left4Dead2";
-		} else if (eVer == Engine_AlienSwarm) {
-				tmpOffset = "sdktools.games\\engine.swarm";
-		}
-		
+			
+		else if (eVer == Engine_CSS)
+			tmpOffset = "sdktools.games\\engine.css";
+			
+		else if (eVer == Engine_TF2)
+			tmpOffset = "sdktools.games\\engine.tf";
+			
+		else if (eVer == Engine_Contagion)
+			tmpOffset = "sdktools.games\\engine.contagion";
+			
+		else if (eVer == Engine_Left4Dead2)
+			tmpOffset = "sdktools.games\\engine.Left4Dead2";
+			
+		else if (eVer == Engine_AlienSwarm)
+			tmpOffset = "sdktools.games\\engine.swarm";
+			
 		Handle temp = LoadGameConfigFile(tmpOffset);
-	
-		if(temp == null) {
-			SetFailState("Why you no has gamedata?");
-		}
-
-		HookEvent("round_poststart", Event_PostRoundStart);
 		
+		if (temp == null)
+			SetFailState("Gamedata Missing!");
+			
+		if (eVer == Engine_CSGO)
+			HookEvent("round_poststart", Event_RoundStarted_CSGO); // CSGO Only
+			
+		else
+			HookEvent("round_start", Event_RoundStarted); // Supported on all Games
+			
 		int offset = GameConfGetOffset(temp, "AcceptInput");
 		hAcceptInput = DHookCreate(offset, HookType_Entity, ReturnType_Bool, ThisPointer_CBaseEntity, AcceptInput);
 		DHookAddParam(hAcceptInput, HookParamType_CharPtr);
@@ -120,20 +122,18 @@ public void OnPluginStart()
 	}
 	
 	//Set volume level to default (late load)
-	for (int j = 1; j <= MaxClients; j++) {
+	for (int j = 1; j <= MaxClients; j++)
 		OnClientPostAdminCheck(j);
-	}
 }
 
 public void OnConVarChanged(ConVar convar, const char[] oldVal, const char[] newVal)
 {
-	if (convar == g_ConVar_Debug) {
+	if (convar == g_ConVar_Debug)
 		g_iDebug = StringToInt(newVal);
-	}
 }
 
 public void OnMapStart()
-{	
+{
 	g_smSourceEnts.Clear();
 	g_smChannel.Clear();
 	g_smCommon.Clear();
@@ -142,18 +142,43 @@ public void OnMapStart()
 	randomChannel = SNDCHAN_USER_BASE - 75;
 }
 
-public void Event_PostRoundStart(Event event, const char[] name, bool dontBroadcast)
+public Event_RoundStarted_CSGO(Event event, const char[] name, bool dontBroadcast)
+{
+	SetVolumeRoundstart();
+}
+
+public Event_RoundStarted(Event event, const char[] name, bool dontBroadcast)
+{
+	LoopTillFullyLoaded(INVALID_HANDLE);
+}
+
+public Action LoopTillFullyLoaded(Handle hTimer)
+{
+	if(1 > GetGameTime()) // Fix for Crashes on older Engines
+	{
+		CreateTimer(1.0, LoopTillFullyLoaded, INVALID_HANDLE, TIMER_DATA_HNDL_CLOSE | TIMER_FLAG_NO_MAPCHANGE);
+		return;
+	}
+	
+	else
+		SetVolumeRoundstart();
+}
+
+public void SetVolumeRoundstart()
 {
 	g_smRecent.Clear();
 	g_smVolume.Clear();
-	for (int j = 1; j <= MaxClients; j++) {
-		if (IsValidClient(j)){
+	
+	for (int j = 1; j <= MaxClients; j++)
+	{
+		if (IsValidClient(j) && !IsFakeClient(j))
+		{
 			ClientCommand(j, "snd_setsoundparam Music.StartRound.valve_csgo_01 volume 0");
 			ClientCommand(j, "snd_setsoundparam Music.StartRound_01.valve_csgo_01 volume 0");
 			ClientCommand(j, "snd_setsoundparam Music.StartRound_02.valve_csgo_01 volume 0");
 			ClientCommand(j, "snd_setsoundparam Music.StartRound_03.valve_csgo_01 volume 0");
 			ClientCommand(j, "snd_setsoundparam Music.StartAction.valve_csgo_01 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.StartAction_01.valve_csgo_01 volume 0"); 
+			ClientCommand(j, "snd_setsoundparam Music.StartAction_01.valve_csgo_01 volume 0");
 			ClientCommand(j, "snd_setsoundparam Music.DeathCam.valve_csgo_01 volume 0");
 			ClientCommand(j, "snd_setsoundparam Music.LostRound.valve_csgo_01 volume 0");
 			ClientCommand(j, "snd_setsoundparam Music.WonRound.valve_csgo_01 volume 0");
@@ -165,7 +190,7 @@ public void Event_PostRoundStart(Event event, const char[] name, bool dontBroadc
 			ClientCommand(j, "snd_setsoundparam Music.StartRound_02.valve_csgo_02 volume 0");
 			ClientCommand(j, "snd_setsoundparam Music.StartRound_03.valve_csgo_02 volume 0");
 			ClientCommand(j, "snd_setsoundparam Music.StartAction.valve_csgo_02 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.StartAction_01.valve_csgo_02 volume 0"); 
+			ClientCommand(j, "snd_setsoundparam Music.StartAction_01.valve_csgo_02 volume 0");
 			ClientCommand(j, "snd_setsoundparam Music.DeathCam.valve_csgo_02 volume 0");
 			ClientCommand(j, "snd_setsoundparam Music.LostRound.valve_csgo_02 volume 0");
 			ClientCommand(j, "snd_setsoundparam Music.WonRound.valve_csgo_02 volume 0");
@@ -190,11 +215,11 @@ public void OnClientPostAdminCheck(int client)
 		char sCookieValue[12];
 		GetClientCookie(client, g_hClientVolCookie, sCookieValue, sizeof(sCookieValue));
 		if (sCookieValue[0])
-		{
 			g_fClientVol[client] = StringToFloat(sCookieValue);
-		} else {
+			
+		else
 			g_fClientVol[client] = 1.0;
-		}
+			
 		sCookieValue = "";
 		GetClientCookie(client, g_hClientMusicCookie, sCookieValue, sizeof(sCookieValue));
 		if (sCookieValue[0])
@@ -203,12 +228,16 @@ public void OnClientPostAdminCheck(int client)
 			{
 				g_bDisabled[client] = true;
 				
-			} else {
-				g_bDisabled[client] = false;
 			}
-		} else {
-			g_bDisabled[client] = false;
+			
+			else
+				g_bDisabled[client] = false;
+				
 		}
+		
+		else
+			g_bDisabled[client] = false;
+			
 		return;
 	}
 	g_fClientVol[client] = 1.0;
@@ -218,9 +247,7 @@ public void OnClientPostAdminCheck(int client)
 public Action ClientMusicNotice(Handle timer, int client)
 {
 	if (IsClientInGame(client))
-	{
 		PrintToChat(client, "[ToggleMusic] Music is currently disabled, type !music for options");
-	}
 }
 
 //Return types
@@ -262,7 +289,7 @@ public MRESReturn AcceptInput(int entity, Handle hReturn, Handle hParams)
 			int matchCount = MatchRegex(regPattern, eParam, regError);
 			if (matchCount > 0) {
 				if (GetRegexSubString(regPattern, 0, soundFile, sizeof(soundFile))) {
-					AddToStringTable( FindStringTable( "soundprecache" ), FakePrecacheSound(soundFile, true) );
+					AddToStringTable(FindStringTable("soundprecache"), FakePrecacheSound(soundFile, true));
 					PrecacheSound(FakePrecacheSound(soundFile, true), false);
 					ClientSendSound(soundFile, eActivator, true);
 				}
@@ -319,18 +346,18 @@ public MRESReturn AcceptInput(int entity, Handle hReturn, Handle hParams)
 				}
 			}
 		}
-
+		
 		if (g_smRecent.GetValue(soundFile, temp))
 		{
 			g_smRecent.Remove(soundFile);
 			g_smCommon.SetValue(soundFile, 1, true);
 			common = true;
-			AddToStringTable( FindStringTable( "soundprecache" ), FakePrecacheSound(soundFile, true) );
+			AddToStringTable(FindStringTable("soundprecache"), FakePrecacheSound(soundFile, true));
 			PrecacheSound(FakePrecacheSound(soundFile, true), false);
 			//Debug vv
 			//PrintToServer("COMMON SOUND DETECTED %s", soundFile);
 		} else {
-			AddToStringTable( FindStringTable( "soundprecache" ), FakePrecacheSound(soundFile, common) );
+			AddToStringTable(FindStringTable("soundprecache"), FakePrecacheSound(soundFile, common));
 			PrecacheSound(FakePrecacheSound(soundFile, common), false);
 		}
 		
@@ -340,7 +367,7 @@ public MRESReturn AcceptInput(int entity, Handle hReturn, Handle hParams)
 		//PrintToServer("Cmd %s Name %s Param %s Channel %i Song %s", eCommand, eName, eParam, customChannel, FakePrecacheSound(soundFile, common));
 		
 		SendSoundAll(soundFile, entity, common);
-
+		
 		if (!common && !(eFlags & 1))
 		{
 			g_smRecent.SetValue(soundFile, 1, true);
@@ -351,11 +378,11 @@ public MRESReturn AcceptInput(int entity, Handle hReturn, Handle hParams)
 		}
 		DHookSetReturn(hReturn, false);
 		return MRES_Supercede;
-	} 
+	}
 	else if (StrEqual(eCommand, "StopSound", false) || StrEqual(eCommand, "FadeOut", false) || (StrEqual(eCommand, "Volume", false) && (iParam == 0)))
 	{
 		int temp;
-		bool common = g_smCommon.GetValue(soundFile, temp);	
+		bool common = g_smCommon.GetValue(soundFile, temp);
 		StopSoundAll(soundFile, entity, common);
 		
 		if (eFlags & 1)
@@ -397,7 +424,7 @@ public Action CheckCommonSounds(Handle timer, DataPack dataPack)
 	int temp;
 	if (g_smCommon.GetValue(soundFile, temp))
 	{
-		temp = dataPack.ReadCell();			
+		temp = dataPack.ReadCell();
 		StopSoundAll(soundFile, temp, false);
 	}
 }
@@ -450,11 +477,11 @@ public Action Command_Music(int client, any args)
 	// Prevent this command from being spammed.
 	if (!client || g_fCmdTime[client] > GetGameTime())
 		return Plugin_Handled;
-
+	
 	makeMusicMenu(client);
-
+	
 	g_fCmdTime[client] = GetGameTime() + 1.5;
- 
+	
 	return Plugin_Handled;
 }
 
@@ -463,12 +490,12 @@ public Action Command_StopMusic(int client, any args)
 	// Prevent this command from being spammed.
 	if (!client || g_fCmdTime[client] > GetGameTime())
 		return Plugin_Handled;
-
+	
 	ClientStopSound(client);
 	PrintToChat(client, "[ToggleMusic] Stopped Music ~ Type !music or !volume for more options");
-
+	
 	g_fCmdTime[client] = GetGameTime() + 1.5;
- 
+	
 	return Plugin_Handled;
 }
 
@@ -477,11 +504,11 @@ public Action Command_Volume(int client, any args)
 	// Prevent this command from being spammed.
 	if (!client || g_fCmdTime[client] > GetGameTime())
 		return Plugin_Handled;
-
+	
 	makeVolumeMenu(client);
-
+	
 	g_fCmdTime[client] = GetGameTime() + 1.5;
- 
+	
 	return Plugin_Handled;
 }
 
@@ -540,9 +567,9 @@ public int Volume_Menu(Menu menu, MenuAction action, int client, int param)
 		
 		char info[32];
 		menu.GetItem(param, info, sizeof(info));
-		PrintCenterText(client, "Volume set to: %i%", RoundFloat(g_fClientVol[client]*100));
+		PrintCenterText(client, "Volume set to: %i%", RoundFloat(g_fClientVol[client] * 100));
 		PrintToChat(client, "[ToggleMusic] Volume will be updated on the next song");
-
+		
 	} else if (action == MenuAction_Cancel && param == MenuCancel_ExitBack && IsValidClient(client)) {
 		makeMusicMenu(client);
 	} else if (action == MenuAction_End) {
@@ -561,7 +588,7 @@ static void makeMusicMenu(int client)
 		toggleSelection = "On";
 	}
 	
-	musicMenu.SetTitle("Map Music: %s Volume: %i%", toggleSelection, RoundFloat(g_fClientVol[client]*100));
+	musicMenu.SetTitle("Map Music: %s Volume: %i%", toggleSelection, RoundFloat(g_fClientVol[client] * 100));
 	musicMenu.AddItem("off", "Off");
 	musicMenu.AddItem("on", "On");
 	musicMenu.AddItem("spacer1", "spacer1", ITEMDRAW_SPACER);
@@ -573,7 +600,7 @@ static void makeMusicMenu(int client)
 static void makeVolumeMenu(int client)
 {
 	Menu volumeMenu = CreateMenu(Volume_Menu);
-	volumeMenu.SetTitle("Volume: %i%", RoundFloat(g_fClientVol[client]*100));
+	volumeMenu.SetTitle("Volume: %i%", RoundFloat(g_fClientVol[client] * 100));
 	volumeMenu.AddItem("100", "100%");
 	volumeMenu.AddItem("75", "75%");
 	volumeMenu.AddItem("50", "50%");
@@ -614,7 +641,7 @@ stock void SendSoundAll(char[] name, int entity, bool common = false)
 				}
 			}
 		} else {
-			int sourceEnt = GetSourceEntity(entity);			
+			int sourceEnt = GetSourceEntity(entity);
 			for (int i = 1; i <= MaxClients; i++)
 			{
 				if (!g_bDisabled[i] && IsValidClient(i))
@@ -629,7 +656,7 @@ stock void SendSoundAll(char[] name, int entity, bool common = false)
 stock void ClientSendSound(char[] name, int client, bool common = false)
 {
 	if (!IsValidClient2(client)) { return; }
-
+	
 	int customChannel;
 	
 	if (!g_smChannel.GetValue(name, customChannel))
@@ -642,7 +669,7 @@ stock void ClientSendSound(char[] name, int client, bool common = false)
 			randomChannel = SNDCHAN_USER_BASE - 75;
 		}
 	}
-			
+	
 	if (!g_bDisabled[client])
 	{
 		EmitSoundToClient(client, FakePrecacheSound(name, common), client, customChannel, SNDLEVEL_NORMAL, SND_NOFLAGS, g_fClientVol[client], SNDPITCH_NORMAL, -1, _, _, true);
@@ -704,7 +731,7 @@ stock static char[] FakePrecacheSound(const char[] sample, const bool common = f
 				Format(szSound, sizeof(szSound), "*%s", szSound);
 			}
 		}
-	} else 
+	} else
 	{
 		if (szSound[0] == '*')
 		{
@@ -723,7 +750,7 @@ stock static bool IsValidClient(int client) {
 		return false;
 	}
 	return true;
-}  
+}
 
 stock bool IsValidClient2(int client)
 {
@@ -737,4 +764,42 @@ stock bool IsValidClient2(int client)
 		return false;
 	}
 	return true;
-} 
+}
+
+// Part of Teamgames-stocks.inc
+
+stock RequestFrame2(RequestFrameCallback:func, framesAhead = 1, any:data = 0)
+{
+	if (framesAhead < 1)
+		return;
+
+	if (framesAhead == 1) {
+		RequestFrame(func, data);
+	} else {
+		new Handle:pack = CreateDataPack();
+#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
+		WritePackFunction(pack, func);
+#else
+		WritePackCell(pack, func);
+#endif
+		WritePackCell(pack, framesAhead);
+		WritePackCell(pack, data);
+
+		RequestFrame(RequestFrame2_CallBack, pack);
+	}
+}
+
+public RequestFrame2_CallBack(any:pack)
+{
+	ResetPack(Handle:pack);
+#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 7
+	new RequestFrameCallback:func = RequestFrameCallback:ReadPackFunction(Handle:pack);
+#else
+	new RequestFrameCallback:func = RequestFrameCallback:ReadPackCell(Handle:pack);
+#endif
+	new framesAhead = ReadPackCell(Handle:pack) - 1;
+	new data = ReadPackCell(Handle:pack);
+	CloseHandle(Handle:pack);
+
+	RequestFrame2(func, framesAhead, data);
+}
