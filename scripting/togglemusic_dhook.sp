@@ -3,9 +3,8 @@
 #include <dhooks>
 #include <clientprefs>
 #include <regex>
-//#include <emitsoundany>
 
-#define PLUGIN_VERSION "3.7.8-B"
+#define PLUGIN_VERSION "3.7.9"
 
 //Create ConVar handles
 Handle g_hClientVolCookie;
@@ -30,7 +29,7 @@ StringMap g_smVolume;
 public Plugin myinfo = 
 {
 	name = "Toggle Music", 
-	author = "Mitch & Agent Wesker (Playa Edit)", 
+	author = "Mitch, Agent Wesker & Commits by: Playa", 
 	description = "Allows clients to toggle ambient sounds played by the map", 
 	version = PLUGIN_VERSION, 
 	url = "https://www.steam-gamers.net/"
@@ -168,36 +167,7 @@ public void SetVolumeRoundstart()
 {
 	g_smRecent.Clear();
 	g_smVolume.Clear();
-	
-	for (int j = 1; j <= MaxClients; j++)
-	{
-		if (IsValidClient(j) && !IsFakeClient(j))
-		{
-			ClientCommand(j, "snd_setsoundparam Music.StartRound.valve_csgo_01 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.StartRound_01.valve_csgo_01 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.StartRound_02.valve_csgo_01 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.StartRound_03.valve_csgo_01 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.StartAction.valve_csgo_01 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.StartAction_01.valve_csgo_01 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.DeathCam.valve_csgo_01 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.LostRound.valve_csgo_01 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.WonRound.valve_csgo_01 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.MVPAnthem.valve_csgo_01 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.MVPAnthem_01.valve_csgo_01 volume 0");
-			
-			ClientCommand(j, "snd_setsoundparam Music.StartRound.valve_csgo_02 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.StartRound_01.valve_csgo_02 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.StartRound_02.valve_csgo_02 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.StartRound_03.valve_csgo_02 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.StartAction.valve_csgo_02 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.StartAction_01.valve_csgo_02 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.DeathCam.valve_csgo_02 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.LostRound.valve_csgo_02 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.WonRound.valve_csgo_02 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.MVPAnthem.valve_csgo_02 volume 0");
-			ClientCommand(j, "snd_setsoundparam Music.MVPAnthem_01.valve_csgo_02 volume 0");
-		}
-	}
+	//snd_setsoundparam was patched out of CS:GO
 }
 
 public void OnClientCookiesCached(int client)
